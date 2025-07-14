@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { ExtractionLog, ExtractedRecipe } from '@/lib/types'
-import { spawn } from 'child_process'
+import { PythonShell, PythonShellError } from 'python-shell'
 import path from 'path'
 
 function logExtraction(log: ExtractionLog) {
@@ -40,35 +40,28 @@ function logExtraction(log: ExtractionLog) {
 async function extractRecipe(url: string): Promise<ExtractedRecipe> {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(process.cwd(), 'scripts', 'recipe_extractor.py')
-    const pythonProcess = spawn('python3', [scriptPath, url])
     
-    let outputData = ''
-    let errorData = ''
+    const options = {
+      mode: 'json' as const,
+      // Use system Python in development, but 'python' in Vercel
+      pythonPath: process.env.VERCEL ? 'python' : 'python3',
+      args: [url]
+    }
 
-    pythonProcess.stdout.on('data', (data) => {
-      outputData += data.toString()
-    })
-
-    pythonProcess.stderr.on('data', (data) => {
-      errorData += data.toString()
-    })
-
-    pythonProcess.on('close', (code) => {
-      if (code !== 0) {
-        reject(new Error(`Python script failed: ${errorData}`))
+    PythonShell.run(scriptPath, options).then((results: any[]) => {
+      if (!results || results.length === 0) {
+        reject(new Error('No output from Python script'))
         return
       }
 
-      try {
-        const result = JSON.parse(outputData)
-        if (!result.success) {
-          reject(new Error(result.error))
-          return
-        }
-        resolve(result.data)
-      } catch (error) {
-        reject(new Error('Failed to parse Python script output'))
+      const result = results[0]
+      if (!result.success) {
+        reject(new Error(result.error))
+        return
       }
+      resolve(result.data)
+    }).catch((error: PythonShellError) => {
+      reject(new Error(`Failed to run Python script: ${error.message}`))
     })
   })
 }
@@ -76,7 +69,7 @@ async function extractRecipe(url: string): Promise<ExtractedRecipe> {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const url = searchParams.get('url')
-  const userAgent = request.headers.get('user-agent')
+  const userAgent = request.headers.get('user-agent') || undefined
 
   if (!url) {
     logExtraction({

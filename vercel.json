@@ -1,0 +1,14 @@
+{
+  "buildCommand": "pip install -r requirements.txt && next build",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "functions": {
+    "app/api/extract-recipe/route.ts": {
+      "runtime": "nodejs18.x",
+      "memory": 1024
+    }
+  },
+  "env": {
+    "PYTHON_VERSION": "3.9"
+  }
+} 
