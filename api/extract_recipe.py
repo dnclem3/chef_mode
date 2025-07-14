@@ -43,7 +43,7 @@ def extract_recipe(url, user_agent='default'):
                 ]
             },
             "cook": {
-                "steps": instructions
+                "steps": instructions 
             }
         }
         logger.debug("Successfully extracted recipe data")

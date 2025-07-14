@@ -89,27 +89,30 @@ export default function CookPage() {
   }
 
   // Computed values
-  const currentPhaseSteps = phase === "prep" ? recipe.prep.ingredients : recipe.cook.steps
-  const totalSteps = recipe.prep.ingredients.length + recipe.cook.steps.length
-  const completedSteps = phase === "cook" ? recipe.prep.ingredients.length + currentStepIndex : currentStepIndex
+  const isPrepPhase = phase === "prep"
+  const prepSteps = 1
+  const cookSteps = recipe.cook.steps.length
+  const totalSteps = prepSteps + cookSteps
+  const completedSteps = isPrepPhase ? 0 : prepSteps + currentStepIndex
   const progress = (completedSteps / totalSteps) * 100
 
   // Event handlers
   const handleNext = () => {
-    if (currentStepIndex < currentPhaseSteps.length - 1) {
-      setCurrentStepIndex(currentStepIndex + 1)
-    } else if (phase === "prep") {
+    if (isPrepPhase) {
       setPhase("cook")
       setCurrentStepIndex(0)
+    } else if (currentStepIndex < cookSteps - 1) {
+      setCurrentStepIndex(currentStepIndex + 1)
     }
   }
 
   const handlePrevious = () => {
-    if (currentStepIndex > 0) {
+    if (isPrepPhase) {
+      return // No previous in prep
+    } else if (currentStepIndex > 0) {
       setCurrentStepIndex(currentStepIndex - 1)
-    } else if (phase === "cook") {
+    } else {
       setPhase("prep")
-      setCurrentStepIndex(recipe.prep.ingredients.length - 1)
     }
   }
 
@@ -129,7 +132,7 @@ export default function CookPage() {
       <div className="container mx-auto px-4 py-3 bg-white/60 backdrop-blur-sm">
         <div className="flex justify-between items-center text-lg text-muted-foreground mb-2">
           <div className="font-medium">
-            {phase === "prep" ? "Preparation" : "Cooking"} - Step {currentStepIndex + 1} of {currentPhaseSteps.length}
+            {isPrepPhase ? "Preparation" : "Cooking"} - Step {isPrepPhase ? 1 : currentStepIndex + 1} of {isPrepPhase ? 1 : cookSteps}
           </div>
           <div>
             {completedSteps} of {totalSteps} total steps
@@ -141,12 +144,12 @@ export default function CookPage() {
       <main className="flex-1 container mx-auto px-4 py-8 flex flex-col">
         <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
           <div className="mb-8">
-            {phase === "prep" ? (
+            {isPrepPhase ? (
               <>
                 <h2 className="text-4xl font-bold mb-6 text-gray-800">Prepare Ingredients</h2>
                 <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-orange-200">
                   <ul className="space-y-3">
-                    {recipe.prep.ingredients.slice(currentStepIndex, currentStepIndex + 1).map((ingredient, index) => (
+                    {recipe.prep.ingredients.map((ingredient, index) => (
                       <li key={index} className="flex items-center gap-3">
                         <span className="h-2 w-2 rounded-full bg-emerald-600"></span>
                         <span className="text-xl text-gray-700">
@@ -171,7 +174,7 @@ export default function CookPage() {
             <Button
               variant="outline"
               onClick={handlePrevious}
-              disabled={phase === "prep" && currentStepIndex === 0}
+              disabled={isPrepPhase}
               className="flex items-center gap-2 text-xl px-8 py-4 h-auto bg-white/80 backdrop-blur-sm border-2"
             >
               <ChevronLeft className="h-6 w-6" />
@@ -180,7 +183,7 @@ export default function CookPage() {
 
             <Button
               onClick={handleNext}
-              disabled={phase === "cook" && currentStepIndex === recipe.cook.steps.length - 1}
+              disabled={phase === "cook" && currentStepIndex === cookSteps - 1}
               className="flex items-center gap-2 text-xl px-8 py-4 h-auto"
             >
               Next
