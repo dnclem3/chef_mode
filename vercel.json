@@ -1,6 +1,4 @@
 {
-  "buildCommand": "pip install -r requirements.txt && next build",
-  "installCommand": "pnpm install",
   "framework": "nextjs",
   "functions": {
     "app/api/extract-recipe/route.ts": {
@@ -8,7 +6,10 @@
       "memory": 1024
     }
   },
+  "buildCommand": "pnpm install && pip install -r requirements.txt && next build",
+  "installCommand": "curl -sSL https://install.python-poetry.org | python3 - && pip install -r requirements.txt",
   "env": {
-    "PYTHON_VERSION": "3.9"
+    "PYTHON_VERSION": "3.9",
+    "PYTHONPATH": "/var/task"
   }
 } 

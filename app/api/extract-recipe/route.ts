@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { ExtractionLog, ExtractedRecipe } from '@/lib/types'
-import { PythonShell, PythonShellError } from 'python-shell'
+import { PythonShell } from 'python-shell'
 import path from 'path'
 
 function logExtraction(log: ExtractionLog) {
@@ -43,27 +43,39 @@ async function extractRecipe(url: string): Promise<ExtractedRecipe> {
     
     const options = {
       mode: 'json' as const,
-      // Use system Python in development, but 'python' in Vercel
-      pythonPath: process.env.VERCEL ? 'python' : 'python3',
+      // Try multiple Python paths
+      pythonPath: process.env.VERCEL 
+        ? process.env.PYTHON_PATH || '/var/lang/bin/python3'
+        : 'python3',
+      pythonOptions: ['-u'], // Unbuffered output
       args: [url]
     }
 
-    PythonShell.run(scriptPath, options).then((results: any[]) => {
+    console.log('Attempting Python script execution with options:', {
+      scriptPath,
+      pythonPath: options.pythonPath,
+      isVercel: !!process.env.VERCEL
+    });
+
+    PythonShell.run(scriptPath, options).then((results) => {
       if (!results || results.length === 0) {
-        reject(new Error('No output from Python script'))
-        return
+        console.error('No output from Python script');
+        reject(new Error('No output from Python script'));
+        return;
       }
 
-      const result = results[0]
+      const result = results[0];
       if (!result.success) {
-        reject(new Error(result.error))
-        return
+        console.error('Python script execution failed:', result.error);
+        reject(new Error(result.error || 'Unknown error'));
+        return;
       }
-      resolve(result.data)
-    }).catch((error: PythonShellError) => {
-      reject(new Error(`Failed to run Python script: ${error.message}`))
-    })
-  })
+      resolve(result.data);
+    }).catch((error) => {
+      console.error('Python execution error:', error);
+      reject(new Error(`Failed to run Python script: ${error.message}`));
+    });
+  });
 }
 
 export async function GET(request: Request) {
