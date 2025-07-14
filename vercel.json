@@ -1,3 +1,14 @@
 {
-  "framework": "nextjs"
+  "routes": [
+    {
+      "src": "/api/extract-recipe",
+      "dest": "/api/extract_recipe.py",
+      "methods": ["GET"]
+    }
+  ],
+  "functions": {
+    "/api/extract_recipe.py": {
+      "runtime": "python@3.11"
+    }
+  }
 }

@@ -68,6 +68,7 @@ if __name__ == "__main__":
 else:
     logger.debug("Running in serverless function mode")
     # For Vercel serverless function
+    from http.server import BaseHTTPRequestHandler
     class handler(BaseHTTPRequestHandler):
         def do_GET(self):
             parsed_url = urlparse(self.path)
