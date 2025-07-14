@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { ExtractionLog, ExtractedRecipe } from '@/lib/types'
-import { PythonShell } from 'python-shell'
-import path from 'path'
+// Remove PythonShell import: import { PythonShell } from 'python-shell'
+// Remove path import: import path from 'path'
 
 function logExtraction(log: ExtractionLog) {
   // Add timestamp if not provided
@@ -37,42 +37,39 @@ function logExtraction(log: ExtractionLog) {
   console.log('===========================\n')
 }
 
-async function extractRecipe(url: string): Promise<ExtractedRecipe> {
-  return new Promise((resolve, reject) => {
-    const scriptPath = path.join(process.cwd(), 'scripts', 'extract_recipe.py')
-    
-    const options = {
-      mode: 'json' as const,
-      pythonPath: process.env.VERCEL ? 'python' : 'python3', // Use 'python' in Vercel, 'python3' locally
-      pythonOptions: ['-u'], // Unbuffered output
-      args: [url]
-    }
+// This function now calls the external Vercel service
+async function extractRecipe(url: string, userAgent?: string): Promise<ExtractedRecipe> {
+  const extractorBaseUrl = process.env.RECIPE_EXTRACTOR_BASE_URL;
+  const extractorApiKey = process.env.RECIPE_EXTRACTOR_API_KEY;
 
-    console.log('Attempting Python script execution with options:', {
-      scriptPath,
-      pythonPath: options.pythonPath,
-      isVercel: !!process.env.VERCEL
-    });
+  if (!extractorBaseUrl || !extractorApiKey) {
+    throw new Error("Recipe extractor service URL or API key is not configured.");
+  }
 
-    PythonShell.run(scriptPath, options).then((results) => {
-      if (!results || results.length === 0) {
-        console.error('No output from Python script');
-        reject(new Error('No output from Python script'));
-        return;
-      }
+  const externalApiUrl = `${extractorBaseUrl}/extract?url=${encodeURIComponent(url)}`;
+  
+  console.log('Attempting to call external recipe extraction service:', externalApiUrl);
 
-      const result = results[0];
-      if (!result.success) {
-        console.error('Python script execution failed:', result.error);
-        reject(new Error(result.error || 'Unknown error'));
-        return;
-      }
-      resolve(result.data);
-    }).catch((error) => {
-      console.error('Python execution error:', error);
-      reject(new Error(`Failed to run Python script: ${error.message}`));
-    });
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    'x-api-key': extractorApiKey,
+  };
+
+  if (userAgent) {
+    headers['User-Agent'] = userAgent;
+  }
+
+  const response = await fetch(externalApiUrl, {
+    method: 'GET',
+    headers: headers,
   });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || `External service failed with status: ${response.status}`);
+  }
+
+  return response.json() as Promise<ExtractedRecipe>;
 }
 
 export async function GET(request: Request) {
@@ -115,8 +112,8 @@ export async function GET(request: Request) {
       userAgent
     })
 
-    // Extract recipe data using Python script
-    const recipeData = await extractRecipe(validatedUrl.toString())
+    // Extract recipe data using Python script (now via external service)
+    const recipeData = await extractRecipe(validatedUrl.toString(), userAgent)
 
     // Log success with recipe data
     logExtraction({
@@ -145,4 +142,4 @@ export async function GET(request: Request) {
       { status: 500 }
     )
   }
-} 
+}

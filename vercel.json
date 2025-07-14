@@ -1,9 +1,3 @@
 {
-  "routes": [
-    {
-      "src": "/api/extract-recipe",
-      "dest": "/api/extract_recipe.py",
-      "methods": ["GET"]
-    }
-  ]
+  "routes": []
 }
