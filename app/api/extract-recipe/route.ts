@@ -1,50 +1,92 @@
 import { NextResponse } from 'next/server'
-import type { ExtractionLog } from '@/lib/types'
-
-// For MVP, we'll use a mock recipe
-const MOCK_RECIPE = {
-  title: "Classic Chocolate Chip Cookies",
-  image: null,
-  totalTime: 45,
-  yields: "24 cookies",
-  sourceUrl: "https://example.com/cookies",
-  prep: {
-    ingredients: [
-      { item: "all-purpose flour", quantity: "2 1/4 cups" },
-      { item: "baking soda", quantity: "1 tsp" },
-      { item: "salt", quantity: "1 tsp" },
-      { item: "butter, softened", quantity: "1 cup" },
-      { item: "granulated sugar", quantity: "3/4 cup" },
-      { item: "brown sugar", quantity: "3/4 cup" },
-      { item: "vanilla extract", quantity: "1 tsp" },
-      { item: "large eggs", quantity: "2" },
-      { item: "chocolate chips", quantity: "2 cups" }
-    ]
-  },
-  cook: {
-    steps: [
-      "Preheat oven to 375°F (190°C)",
-      "In a bowl, whisk together flour, baking soda, and salt",
-      "In a large bowl, beat butter and sugars until creamy",
-      "Beat in eggs one at a time, then stir in vanilla",
-      "Gradually blend in dry ingredients",
-      "Stir in chocolate chips",
-      "Drop rounded tablespoons onto ungreased baking sheets",
-      "Bake for 9 to 11 minutes or until golden brown"
-    ]
-  }
-}
+import type { ExtractionLog, ExtractedRecipe } from '@/lib/types'
+import { spawn } from 'child_process'
+import path from 'path'
 
 function logExtraction(log: ExtractionLog) {
-  // For MVP, just console log the attempt
-  console.log('Recipe extraction attempt:', log)
+  // Add timestamp if not provided
+  const timestamp = log.timestamp || new Date().toISOString()
+  
+  // Format the log entry
+  const logEntry = {
+    ...log,
+    timestamp,
+    environment: process.env.NODE_ENV,
+    userAgent: log.userAgent || 'Not provided',
+  }
+
+  // For MVP, log to console in a structured way
+  console.log('\n=== Recipe Extraction Log ===')
+  console.log('Timestamp:', logEntry.timestamp)
+  console.log('Stage:', logEntry.stage)
+  console.log('URL:', logEntry.url)
+  console.log('Success:', logEntry.success)
+  console.log('Environment:', logEntry.environment)
+  console.log('User Agent:', logEntry.userAgent)
+  if (logEntry.errorMessage) {
+    console.log('Error:', logEntry.errorMessage)
+  }
+  if (logEntry.recipeData) {
+    console.log('\nExtracted Recipe Data:')
+    console.log('Title:', logEntry.recipeData.title)
+    console.log('Total Time:', logEntry.recipeData.totalTime, 'minutes')
+    console.log('Yields:', logEntry.recipeData.yields)
+    console.log('Number of Ingredients:', logEntry.recipeData.prep.ingredients.length)
+    console.log('Number of Steps:', logEntry.recipeData.cook.steps.length)
+  }
+  console.log('===========================\n')
+}
+
+async function extractRecipe(url: string): Promise<ExtractedRecipe> {
+  return new Promise((resolve, reject) => {
+    const scriptPath = path.join(process.cwd(), 'scripts', 'recipe_extractor.py')
+    const pythonProcess = spawn('python3', [scriptPath, url])
+    
+    let outputData = ''
+    let errorData = ''
+
+    pythonProcess.stdout.on('data', (data) => {
+      outputData += data.toString()
+    })
+
+    pythonProcess.stderr.on('data', (data) => {
+      errorData += data.toString()
+    })
+
+    pythonProcess.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Python script failed: ${errorData}`))
+        return
+      }
+
+      try {
+        const result = JSON.parse(outputData)
+        if (!result.success) {
+          reject(new Error(result.error))
+          return
+        }
+        resolve(result.data)
+      } catch (error) {
+        reject(new Error('Failed to parse Python script output'))
+      }
+    })
+  })
 }
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const url = searchParams.get('url')
+  const userAgent = request.headers.get('user-agent')
 
   if (!url) {
+    logExtraction({
+      stage: 'init',
+      url: 'No URL provided',
+      success: false,
+      timestamp: new Date().toISOString(),
+      errorMessage: 'URL is required',
+      userAgent
+    })
     return NextResponse.json({ error: 'URL is required' }, { status: 400 })
   }
 
@@ -54,40 +96,45 @@ export async function GET(request: Request) {
     stage: 'init',
     url,
     success: false,
-    timestamp
+    timestamp,
+    userAgent
   })
 
   try {
     // Validate URL
-    new URL(url)
+    const validatedUrl = new URL(url)
 
     // Log fetch start
     logExtraction({
       stage: 'fetch_start',
-      url,
+      url: validatedUrl.toString(),
       success: false,
-      timestamp
+      timestamp,
+      userAgent
     })
 
-    // For MVP, return mock data after a delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Extract recipe data using Python script
+    const recipeData = await extractRecipe(validatedUrl.toString())
 
-    // Log success
+    // Log success with recipe data
     logExtraction({
       stage: 'fetch_success',
-      url,
+      url: validatedUrl.toString(),
       success: true,
-      timestamp
+      timestamp,
+      userAgent,
+      recipeData
     })
 
-    return NextResponse.json(MOCK_RECIPE)
+    return NextResponse.json(recipeData)
   } catch (error) {
-    // Log failure
+    // Log failure with detailed error
     logExtraction({
       stage: 'fetch_failure',
       url,
       success: false,
       timestamp,
+      userAgent,
       errorMessage: error instanceof Error ? error.message : 'Unknown error'
     })
 

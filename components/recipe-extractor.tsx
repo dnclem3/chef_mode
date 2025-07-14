@@ -69,7 +69,7 @@ export default function RecipeExtractor() {
       // In MVP, we'll use URL parameters to pass the recipe ID
       // In a full version, we'd store this in a database
       const recipeData = encodeURIComponent(JSON.stringify(recipe))
-      router.push(`/cook/demo?data=${recipeData}`)
+      router.push(`/cook/1?data=${recipeData}`)  // Using a placeholder ID of 1 for MVP
       
       setStatus("success")
     } catch (err) {
