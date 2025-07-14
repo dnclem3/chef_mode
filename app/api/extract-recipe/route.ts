@@ -43,14 +43,15 @@ async function extractRecipe(url: string): Promise<ExtractedRecipe> {
     
     const options = {
       mode: 'json' as const,
-      pythonPath: 'python3',
+      pythonPath: process.env.VERCEL ? 'python' : 'python3', // Use 'python' in Vercel, 'python3' locally
       pythonOptions: ['-u'], // Unbuffered output
       args: [url]
     }
 
     console.log('Attempting Python script execution with options:', {
       scriptPath,
-      pythonPath: options.pythonPath
+      pythonPath: options.pythonPath,
+      isVercel: !!process.env.VERCEL
     });
 
     PythonShell.run(scriptPath, options).then((results) => {
