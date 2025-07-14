@@ -2,7 +2,7 @@
   "framework": "nextjs",
   "functions": {
     "api/extract_recipe.py": {
-      "runtime": "python"  // Explicitly set Python runtime
+      "runtime": "python"  // Explicitly set Python runtime yup
     }
   }
 }
