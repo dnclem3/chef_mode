@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams, useParams } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,10 +10,11 @@ import PrepBowl from "@/components/prep-bowl"
 import { useMobile } from "@/hooks/use-mobile"
 import type { ExtractedRecipe } from "@/lib/types"
 
-export default function CookPage({ params }: { params: { id: string } }) {
+export default function CookPage() {
   // 1. All navigation/routing hooks
   const router = useRouter()
   const searchParams = useSearchParams()
+  const params = useParams()
   
   // 2. All custom hooks
   const isMobile = useMobile()

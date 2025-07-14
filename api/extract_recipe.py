@@ -53,4 +53,4 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
 
 # For Vercel, this is the entry point
-sys.modules['__main__'].handler = handler 
+sys.modules['__main__'].handler = handler # type: ignore 
