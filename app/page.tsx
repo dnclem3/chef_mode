@@ -1,7 +1,28 @@
+"use client"
+
 import Link from "next/link"
 import { ChefHat, ArrowRight, Github } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import RecipeExtractor from "@/components/recipe-extractor"
+import { useSearchParams } from "next/navigation"
+import { useEffect, useState, Suspense } from "react" // Import Suspense
+
+// A client component that uses useSearchParams
+function RecipeExtractorWrapper() {
+  const searchParams = useSearchParams()
+  const [initialUrlToExtract, setInitialUrlToExtract] = useState<string | null>(null)
+  const [extractionTriggered, setExtractionTriggered] = useState(false);
+
+  useEffect(() => {
+    const urlParam = searchParams.get('url')
+    if (urlParam && !extractionTriggered) {
+      setInitialUrlToExtract(decodeURIComponent(urlParam));
+      setExtractionTriggered(true);
+    }
+  }, [searchParams, extractionTriggered])
+
+  return <RecipeExtractor initialUrl={initialUrlToExtract} />;
+}
 
 export default function Home() {
   return (
@@ -21,7 +42,10 @@ export default function Home() {
         </p>
 
         <div className="w-full mb-12">
-          <RecipeExtractor />
+          {/* Wrap the RecipeExtractorWrapper in a Suspense boundary */}
+          <Suspense fallback={<div>Loading recipe extractor...</div>}>
+            <RecipeExtractorWrapper />
+          </Suspense>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full mb-12">

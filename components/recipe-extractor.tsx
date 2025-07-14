@@ -1,7 +1,7 @@
 "use client"
 
 import type { ExtractedRecipe, ExtractionStatus } from "@/lib/types"
-import { useState } from "react"
+import { useState, useEffect } from "react" // Import useEffect
 import { useRouter } from "next/navigation"
 import { ChefHat, Loader2, Camera, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -9,13 +9,30 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { RecipeErrorModal } from "./recipe-error-modal"
 
-export default function RecipeExtractor() {
+interface RecipeExtractorProps {
+  initialUrl?: string | null; // New prop for initial URL
+}
+
+export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
   const [url, setUrl] = useState("")
   const [status, setStatus] = useState<ExtractionStatus>("idle")
   const [error, setError] = useState("")
   const router = useRouter()
   const [showCamera, setShowCamera] = useState(false)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
+
+  // Effect to handle initialUrl prop
+  useEffect(() => {
+    if (initialUrl && status === "idle") {
+      setUrl(initialUrl); // Set the URL state
+      // Trigger extraction immediately if initialUrl is provided
+      // Use a function to ensure it runs after state is set
+      const trigger = async () => {
+        await handleExtractInternal(initialUrl);
+      };
+      trigger();
+    }
+  }, [initialUrl, status]); // Re-run if initialUrl changes or status is idle
 
   const resetForm = () => {
     setUrl("")
@@ -40,15 +57,14 @@ export default function RecipeExtractor() {
     setStatus("error")
   }
 
-  const handleExtract = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!url) {
+  // Internal function to handle extraction, callable by useEffect and form submit
+  const handleExtractInternal = async (extractUrl: string) => {
+    if (!extractUrl) {
       setError("Please enter a recipe URL")
       return
     }
 
-    if (!url.startsWith("http")) {
+    if (!extractUrl.startsWith("http")) {
       setError("Please enter a valid URL")
       return
     }
@@ -57,7 +73,8 @@ export default function RecipeExtractor() {
     setError("")
 
     try {
-      const response = await fetch(`/api/extract-recipe?url=${encodeURIComponent(url)}`)
+      // Your existing API call to the external Python service
+      const response = await fetch(`/api/extract-recipe?url=${encodeURIComponent(extractUrl)}`)
       const data = await response.json()
 
       if (!response.ok) {
@@ -66,8 +83,6 @@ export default function RecipeExtractor() {
 
       const recipe = data as ExtractedRecipe
       
-      // In MVP, we'll use URL parameters to pass the recipe ID
-      // In a full version, we'd store this in a database
       const recipeData = encodeURIComponent(JSON.stringify(recipe))
       router.push(`/cook/1?data=${recipeData}`)  // Using a placeholder ID of 1 for MVP
       
@@ -76,6 +91,12 @@ export default function RecipeExtractor() {
       setStatus("error")
       setError(err instanceof Error ? err.message : 'Failed to extract recipe')
     }
+  }
+
+  // Public handler for form submission
+  const handleExtract = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await handleExtractInternal(url); // Use the current state 'url'
   }
 
   return (
@@ -150,7 +171,6 @@ export default function RecipeExtractor() {
 
                 <Button
                   type="button"
-                  variant="outline"
                   onClick={handleCameraCapture}
                   disabled={status === "loading"}
                   className="text-lg py-3 bg-white/80 backdrop-blur-sm border-2"
