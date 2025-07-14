@@ -2,7 +2,6 @@
   "framework": "nextjs",
   "functions": {
     "api/extract_recipe.py": {
-      "runtime": "python"  // Explicitly set Python runtime yup
-    }
+      "runtime": "python3.9" 
   }
 }
