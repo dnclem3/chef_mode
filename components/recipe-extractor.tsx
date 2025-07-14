@@ -136,7 +136,7 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
                   )}
                 </Button>
               </div>
-
+{/*
               <div className="flex items-center gap-4">
                 <div className="flex-1 border-t border-muted"></div>
                 <span className="text-muted-foreground text-lg">or</span>
@@ -179,6 +179,8 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
                   Take Photo
                 </Button>
               </div>
+*/}
+
             </div>
 
             {error && <p className="text-lg text-red-500">{error}</p>}
@@ -186,7 +188,6 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
             {selectedImage && (
               <div className="text-lg text-emerald-600">Selected: {selectedImage.name}</div>
             )}
-
             {(status === "loading" || showCamera) && (
               <div className="flex items-center justify-center py-6">
                 <div className="text-center">
@@ -198,6 +199,7 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
                   </p>
                 </div>
               </div>
+
             )}
           </form>
         </CardContent>
