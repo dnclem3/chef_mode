@@ -38,7 +38,7 @@ def extract_recipe(url, user_agent='default'):
             "sourceUrl": url,
             "prep": {
                 "ingredients": [
-                    {"item": ingredient, "quantity": None}
+                    {"item": ingredient}
                     for ingredient in ingredients
                 ]
             },
