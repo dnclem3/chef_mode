@@ -1,15 +1,16 @@
 export interface ExtractedRecipe {
   title: string;
-  image: string | null;  // Allow null since not all recipes have images
+  image: string | null;
   totalTime: number;
   yields: string;
   sourceUrl: string;
   prep: {
-    ingredients: { item: string; quantity: string | null }[];  // Allow null for quantity
+    ingredients: { item: string; quantity: string | null }[];
   };
   cook: {
     steps: string[]; // each string is one instruction step
   };
+  step_ingredients?: { [key: number]: string[] } | null; // NEW FIELD: Optional, object mapping step index to array of ingredients
 }
 
 export type ExtractionStatus = 'idle' | 'loading' | 'success' | 'error';
@@ -23,4 +24,4 @@ export interface ExtractionLog {
   userAgent?: string;
   recipeData?: ExtractedRecipe;
   environment?: 'development' | 'production' | 'test';
-} 
+}

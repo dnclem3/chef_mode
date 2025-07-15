@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
 import type { ExtractionLog, ExtractedRecipe } from '@/lib/types'
-// Remove PythonShell import: import { PythonShell } from 'python-shell'
-// Remove path import: import path from 'path'
 
 function logExtraction(log: ExtractionLog) {
   // Add timestamp if not provided
@@ -33,6 +31,9 @@ function logExtraction(log: ExtractionLog) {
     console.log('Yields:', logEntry.recipeData.yields)
     console.log('Number of Ingredients:', logEntry.recipeData.prep.ingredients.length)
     console.log('Number of Steps:', logEntry.recipeData.cook.steps.length)
+    if (logEntry.recipeData.step_ingredients) { // Log new field
+      console.log('Step Ingredients:', logEntry.recipeData.step_ingredients);
+    }
   }
   console.log('===========================\n')
 }
@@ -115,7 +116,27 @@ export async function GET(request: Request) {
     // Extract recipe data using Python script (now via external service)
     const recipeData = await extractRecipe(validatedUrl.toString(), userAgent)
 
-    // Log success with recipe data
+    // Simulate Gemini's response for step_ingredients
+    // In a real scenario, you would send recipeData.cook.steps to Gemini
+    // and process its response to populate step_ingredients.
+    const simulatedStepIngredients: { [key: number]: string[] } = {};
+    recipeData.cook.steps.forEach((step, index) => {
+      // Dummy logic: assign some ingredients based on step number for demonstration
+      if (index === 0) {
+        simulatedStepIngredients[index] = ["2 tbsp olive oil", "1 onion, chopped", "2 cloves garlic, minced"];
+      } else if (index === 1) {
+        simulatedStepIngredients[index] = ["1 lb ground beef", "1 can (14.5 oz) diced tomatoes", "1 tsp dried oregano"];
+      } else if (index === 2) {
+        simulatedStepIngredients[index] = ["1/2 cup chicken broth", "salt and pepper to taste"];
+      } else {
+        simulatedStepIngredients[index] = ["Ingredients for this step: Check the recipe!"];
+      }
+    });
+
+    // Add the simulated step_ingredients to the recipeData
+    recipeData.step_ingredients = simulatedStepIngredients;
+
+    // Log success with recipe data (now including step_ingredients)
     logExtraction({
       stage: 'fetch_success',
       url: validatedUrl.toString(),

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams, useParams } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react"
@@ -23,6 +23,26 @@ export default function CookPage() {
   const [recipe, setRecipe] = useState<ExtractedRecipe | null>(null)
   const [phase, setPhase] = useState<"prep" | "cook">("prep")
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
+
+  // Move these functions before the useEffect and wrap in useCallback
+  const handleNext = useCallback(() => {
+    if (phase === "prep") {
+      setPhase("cook")
+      setCurrentStepIndex(0)
+    } else if (currentStepIndex < (recipe?.cook.steps.length ?? 0) - 1) {
+      setCurrentStepIndex(prev => prev + 1)
+    }
+  }, [phase, currentStepIndex, recipe?.cook.steps.length])
+
+  const handlePrevious = useCallback(() => {
+    if (phase === "prep") {
+      return // No previous in prep
+    } else if (currentStepIndex > 0) {
+      setCurrentStepIndex(prev => prev - 1)
+    } else {
+      setPhase("prep")
+    }
+  }, [phase, currentStepIndex])
 
   // 4. Recipe data effect
   useEffect(() => {
@@ -74,7 +94,7 @@ export default function CookPage() {
       document.removeEventListener("touchstart", handleTouchStart)
       document.removeEventListener("touchend", handleTouchEnd)
     }
-  }, [isMobile])
+  }, [isMobile, handlePrevious, handleNext])
 
   // Early return if no recipe
   if (!recipe) {
@@ -97,26 +117,11 @@ export default function CookPage() {
   const progress = (completedSteps / totalSteps) * 100
 
   // Event handlers
-  const handleNext = () => {
-    if (isPrepPhase) {
-      setPhase("cook")
-      setCurrentStepIndex(0)
-    } else if (currentStepIndex < cookSteps - 1) {
-      setCurrentStepIndex(currentStepIndex + 1)
-    }
-  }
+  // Get ingredients for the current cooking step
+  const currentStepIngredients = !isPrepPhase && recipe.step_ingredients
+    ? recipe.step_ingredients[currentStepIndex]
+    : null;
 
-  const handlePrevious = () => {
-    if (isPrepPhase) {
-      return // No previous in prep
-    } else if (currentStepIndex > 0) {
-      setCurrentStepIndex(currentStepIndex - 1)
-    } else {
-      setPhase("prep")
-    }
-  }
-
-  // Rest of the component remains the same...
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
       <header className="border-b bg-white/80 backdrop-blur-sm">
@@ -166,6 +171,21 @@ export default function CookPage() {
                 <p className="text-2xl leading-relaxed mb-8 text-gray-700 font-medium">
                   {recipe.cook.steps[currentStepIndex]}
                 </p>
+
+                {/* NEW: Display step-specific ingredients */}
+                {currentStepIngredients && currentStepIngredients.length > 0 && (
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-orange-200 mt-6">
+                    <h3 className="text-xl font-semibold mb-4 text-gray-800">Ingredients for this step:</h3>
+                    <ul className="space-y-2">
+                      {currentStepIngredients.map((ingredient, index) => (
+                        <li key={index} className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+                          <span className="text-lg text-gray-700">{ingredient}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </>
             )}
           </div>
