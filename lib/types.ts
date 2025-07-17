@@ -7,7 +7,7 @@ export interface ExtractedRecipe {
   ingredients: string[];
   instructions: string[];
   step_ingredients?: {
-    [key: string]: string[] // Using string key since API returns "0", "1", etc.
+    [key: string]: string[] // Keep as optional for API compatibility
   };
 }
 

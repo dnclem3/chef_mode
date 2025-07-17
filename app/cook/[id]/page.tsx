@@ -29,7 +29,7 @@ export default function CookPage() {
     if (phase === "prep") {
       setPhase("cook")
       setCurrentStepIndex(0)
-    } else if (currentStepIndex < (recipe?.instructions.length ?? 0) - 1) {
+    } else if (currentStepIndex < (recipe?.instructions.length ?? 0) ) {
       setCurrentStepIndex(prev => prev + 1)
     }
   }, [phase, currentStepIndex, recipe?.instructions.length])
@@ -113,14 +113,11 @@ export default function CookPage() {
   const prepSteps = 1
   const cookSteps = recipe.instructions.length // Changed from recipe.cook.steps.length
   const totalSteps = prepSteps + cookSteps
-  const completedSteps = isPrepPhase ? 0 : prepSteps + currentStepIndex
+  const completedSteps = isPrepPhase ? 1 : prepSteps + currentStepIndex
   const progress = (completedSteps / totalSteps) * 100
 
   // Event handlers
-  // Get ingredients for the current cooking step
-  const currentStepIngredients = !isPrepPhase && recipe.step_ingredients
-    ? recipe.step_ingredients[currentStepIndex.toString()]
-    : null;
+
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
@@ -172,20 +169,7 @@ export default function CookPage() {
                   {recipe.instructions[currentStepIndex]} {/* Changed from recipe.cook.steps */}
                 </p>
 
-                {/* Step ingredients section */}
-                {recipe.step_ingredients && recipe.step_ingredients[currentStepIndex.toString()] && (
-                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-orange-200 mt-6">
-                    <h3 className="text-xl font-semibold mb-4 text-gray-800">Ingredients for this step:</h3>
-                    <ul className="space-y-2">
-                      {recipe.step_ingredients[currentStepIndex.toString()].map((ingredient, index) => (
-                        <li key={index} className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0"></span>
-                          <span className="text-lg text-gray-700">{ingredient}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+
               </>
             )}
           </div>

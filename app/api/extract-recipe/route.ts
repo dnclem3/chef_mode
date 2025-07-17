@@ -29,9 +29,7 @@ function logExtraction(log: ExtractionLog) {
     console.log('Yields:', logEntry.recipeData.yields)
     console.log('Number of Ingredients:', logEntry.recipeData.ingredients.length)
     console.log('Number of Steps:', logEntry.recipeData.instructions.length)
-    if (logEntry.recipeData.step_ingredients) {
-      console.log('Step Ingredients:', logEntry.recipeData.step_ingredients);
-    }
+
   }
   console.log('===========================\n')
 }
@@ -48,26 +46,124 @@ async function extractRecipeFromImage(imageData: string[], userAgent?: string): 
     apiKey: openaiApiKey,
   });
 
-  const systemPrompt = `You are a recipe extraction assistant. Extract recipe information from images and return it in JSON format.
-Always return valid JSON with no additional text or markdown formatting.
-If multiple images are provided, combine all visible information into a single recipe.`;
+  const systemPrompt = `
+  
+You are an expert at extracting structured recipe data from photos of cookbooks and printed recipes.
 
-  const userPrompt = `Extract the complete recipe information from the provided image(s). Return only a JSON object with this exact structure:
+You will receive up to 3 images of a single recipe. Your job is to return the data in valid JSON using the exact format below.
+
+Only extract information you can clearly see in the images. Do not hallucinate or infer missing data. If a field is not visible, leave it as:
+	•	null for strings (e.g., title, sourceUrl, image),
+	•	0 for numbers (e.g., totalTime),
+	•	[] for arrays (e.g., ingredients or instructions).
+
+For ingredients, return each as a string in the format: "quantity + item" (e.g., "1/2 cup chopped onion").
+
+For instructions, return each step as a separate string. Keep them concise but complete.
+
+Format your output like this:
+
 {
   "title": "string",
   "image": null,
-  "totalTime": number,
+  "totalTime": 0,
   "yields": "string",
   "sourceUrl": "string",
   "ingredients": ["string"],
-  "instructions": ["string"],
-  "step_ingredients": { "[step_index: number]": ["string"] }
+  "instructions": ["string"]
 }
 
-For ingredients, include quantity and item in each string.
-For instructions, provide clear step-by-step directions.
-The step_ingredients should map step index (0-based) to ingredients used in that step.
-If any information is not visible, use null for strings, 0 for numbers, or empty arrays.`;
+
+⸻
+
+Example:
+
+If the image shows a recipe titled “Simple Tomato Pasta” with the following visible:
+	•	Serves 2
+	•	Ingredients: 200g spaghetti, 2 garlic cloves, 1 tbsp olive oil, 1 can diced tomatoes
+	•	Instructions: Boil pasta. Sauté garlic. Add tomatoes. Combine.
+
+Then the output should be:
+
+{
+  "title": "Simple Tomato Pasta",
+  "image": null,
+  "totalTime": 0,
+  "yields": "2 servings",
+  "sourceUrl": null,
+  "ingredients": [
+    "200g spaghetti",
+    "2 garlic cloves",
+    "1 tablespoon olive oil",
+    "1 can diced tomatoes"
+  ],
+  "instructions": [
+    "Boil pasta",
+    "Sauté garlic",
+    "Add tomatoes",
+    "Combine"
+  ]
+}
+`;
+
+  const userPrompt = `
+  
+You are an expert at extracting structured recipe data from photos of cookbooks and printed recipes.
+
+You will receive up to 3 images of a single recipe. Your job is to return the data in valid JSON using the exact format below.
+
+Only extract information you can clearly see in the images. Do not hallucinate or infer missing data. If a field is not visible, leave it as:
+	•	null for strings (e.g., title, sourceUrl, image),
+	•	0 for numbers (e.g., totalTime),
+	•	[] for arrays (e.g., ingredients or instructions).
+
+For ingredients, return each as a string in the format: "quantity + item" (e.g., "1/2 cup chopped onion").
+
+For instructions, return each step as a separate string. Keep them concise but complete.
+
+Format your output like this:
+
+{
+  "title": "string",
+  "image": null,
+  "totalTime": 0,
+  "yields": "string",
+  "sourceUrl": "string",
+  "ingredients": ["string"],
+  "instructions": ["string"]
+}
+
+
+⸻
+
+Example:
+
+If the image shows a recipe titled “Simple Tomato Pasta” with the following visible:
+	•	Serves 2
+	•	Ingredients: 200g spaghetti, 2 garlic cloves, 1 tbsp olive oil, 1 can diced tomatoes
+	•	Instructions: Boil pasta. Sauté garlic. Add tomatoes. Combine.
+
+Then the output should be:
+
+{
+  "title": "Simple Tomato Pasta",
+  "image": null,
+  "totalTime": 0,
+  "yields": "2 servings",
+  "sourceUrl": null,
+  "ingredients": [
+    "200g spaghetti",
+    "2 garlic cloves",
+    "1 tablespoon olive oil",
+    "1 can diced tomatoes"
+  ],
+  "instructions": [
+    "Boil pasta",
+    "Sauté garlic",
+    "Add tomatoes",
+    "Combine"
+  ]
+}`;
 
   try {
     // Debug: Log detailed information about each image
@@ -131,7 +227,7 @@ If any information is not visible, use null for strings, 0 for numbers, or empty
     console.log('Text prompt length:', userPrompt.length);
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4.1-mini",
       messages: [
         {
           role: "user",
@@ -141,7 +237,7 @@ If any information is not visible, use null for strings, 0 for numbers, or empty
           ]
         }
       ],
-      max_tokens: 4096,
+      max_tokens: 8000,
       temperature: 0.2,
       response_format: { type: "json_object" }
     });

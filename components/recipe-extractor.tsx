@@ -113,7 +113,7 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
     console.log('=== HANDLE EXTRACT INTERNAL CALLED ===');
     console.log('Input type:', typeof input);
     console.log('Input value:', Array.isArray(input) ? `Array with ${input.length} files` : input);
-    
+
     setStatus("loading")
     setError("")
 
@@ -305,8 +305,8 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
                   className="flex-1 text-lg py-3"
                   disabled={status === "loading"}
                 />
-                <Button
-                  type="submit"
+                <Button 
+                  type="submit" 
                   disabled={status === "loading" || url.length === 0}
                   className="text-lg px-6 py-3 bg-red-500"
                 >
@@ -328,11 +328,11 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleImageUpload} 
+                    className="hidden" 
                     id="image-upload"
                     multiple // Allow multiple file selection
                     disabled={status === "loading" || selectedImages.length >= 3} // Disable if 3 images already selected
@@ -353,7 +353,7 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
                     </Button>
                   </label>
                 </div>
-
+{/*
                 <Button
                   type="button"
                   variant="outline"
@@ -364,6 +364,7 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
                   <Camera className="mr-2 h-5 w-5" />
                   Take Photo ({selectedImages.length}/3)
                 </Button>
+*/}
               </div>
 
               {/* Display selected image thumbnails */}
@@ -434,9 +435,9 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
         </CardContent>
       </Card>
 
-      <RecipeErrorModal
-        isOpen={status === "error"}
-        onClose={resetForm}
+      <RecipeErrorModal 
+        isOpen={status === "error"} 
+        onClose={resetForm} 
       />
     </>
   )
