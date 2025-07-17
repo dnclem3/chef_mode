@@ -29,10 +29,10 @@ export default function CookPage() {
     if (phase === "prep") {
       setPhase("cook")
       setCurrentStepIndex(0)
-    } else if (currentStepIndex < (recipe?.cook.steps.length ?? 0) - 1) {
+    } else if (currentStepIndex < (recipe?.instructions.length ?? 0) - 1) {
       setCurrentStepIndex(prev => prev + 1)
     }
-  }, [phase, currentStepIndex, recipe?.cook.steps.length])
+  }, [phase, currentStepIndex, recipe?.instructions.length])
 
   const handlePrevious = useCallback(() => {
     if (phase === "prep") {
@@ -111,7 +111,7 @@ export default function CookPage() {
   // Computed values
   const isPrepPhase = phase === "prep"
   const prepSteps = 1
-  const cookSteps = recipe.cook.steps.length
+  const cookSteps = recipe.instructions.length // Changed from recipe.cook.steps.length
   const totalSteps = prepSteps + cookSteps
   const completedSteps = isPrepPhase ? 0 : prepSteps + currentStepIndex
   const progress = (completedSteps / totalSteps) * 100
@@ -119,7 +119,7 @@ export default function CookPage() {
   // Event handlers
   // Get ingredients for the current cooking step
   const currentStepIngredients = !isPrepPhase && recipe.step_ingredients
-    ? recipe.step_ingredients[currentStepIndex]
+    ? recipe.step_ingredients[currentStepIndex.toString()]
     : null;
 
   return (
@@ -154,11 +154,11 @@ export default function CookPage() {
                 <h2 className="text-4xl font-bold mb-6 text-gray-800">Prepare Ingredients</h2>
                 <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-orange-200">
                   <ul className="space-y-3">
-                    {recipe.prep.ingredients.map((ingredient, index) => (
+                    {recipe.ingredients.map((ingredient, index) => ( // Changed from recipe.prep.ingredients
                       <li key={index} className="flex items-center gap-3">
                         <span className="h-2 w-2 rounded-full bg-emerald-600"></span>
                         <span className="text-xl text-gray-700">
-                          {ingredient.quantity && <span className="font-medium">{ingredient.quantity}</span>} {ingredient.item}
+                          {ingredient} {/* Changed from ingredient.quantity and ingredient.item */}
                         </span>
                       </li>
                     ))}
@@ -169,15 +169,15 @@ export default function CookPage() {
               <>
                 <h2 className="text-4xl font-bold mb-6 text-gray-800">Step {currentStepIndex + 1}</h2>
                 <p className="text-2xl leading-relaxed mb-8 text-gray-700 font-medium">
-                  {recipe.cook.steps[currentStepIndex]}
+                  {recipe.instructions[currentStepIndex]} {/* Changed from recipe.cook.steps */}
                 </p>
 
-                {/* NEW: Display step-specific ingredients */}
-                {currentStepIngredients && currentStepIngredients.length > 0 && (
+                {/* Step ingredients section */}
+                {recipe.step_ingredients && recipe.step_ingredients[currentStepIndex.toString()] && (
                   <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-orange-200 mt-6">
                     <h3 className="text-xl font-semibold mb-4 text-gray-800">Ingredients for this step:</h3>
                     <ul className="space-y-2">
-                      {currentStepIngredients.map((ingredient, index) => (
+                      {recipe.step_ingredients[currentStepIndex.toString()].map((ingredient, index) => (
                         <li key={index} className="flex items-center gap-2">
                           <span className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0"></span>
                           <span className="text-lg text-gray-700">{ingredient}</span>
