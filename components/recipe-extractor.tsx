@@ -3,7 +3,8 @@
 import type { ExtractedRecipe, ExtractionStatus } from "@/lib/types"
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ChefHat, Loader2, Camera, Upload } from "lucide-react"
+import Image from "next/image" // Import Image component for displaying thumbnails
+import { ChefHat, Loader2, Camera, Upload, XCircle } from "lucide-react" // Added XCircle for removing images
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -18,151 +19,279 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
   const [status, setStatus] = useState<ExtractionStatus>("idle")
   const [error, setError] = useState("")
   const router = useRouter()
-  const [selectedImages, setSelectedImages] = useState<File[]>([]) // State to store selected image files
-  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input element
+  // Changed selectedImage to selectedImages to store an array of File objects
+  const [selectedImages, setSelectedImages] = useState<File[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null) // Ref for the hidden file input
 
-  // Effect to handle initialUrl prop for automatic URL extraction
+  // Effect to handle initialUrl prop
   useEffect(() => {
     if (initialUrl && status === "idle") {
       setUrl(initialUrl);
       const trigger = async () => {
-        await handleExtractInternal(initialUrl, 'url');
+        await handleExtractInternal(initialUrl);
       };
       trigger();
     }
   }, [initialUrl, status]);
 
+  // Resets the form state, including clearing selected images
   const resetForm = () => {
     setUrl("")
     setStatus("idle")
     setError("")
-    setSelectedImages([]) // Clear selected images
+    setSelectedImages([]) // Clear all selected images
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Clear the file input's value
+      fileInputRef.current.value = ""; // Clear the file input as well
     }
   }
 
-  // Handle image file selection
+  // Handles image file selection, allowing multiple files up to 3
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('=== IMAGE UPLOAD HANDLER CALLED ===');
+    
     const files = e.target.files
-    if (files && files.length > 0) {
-      const newImages = Array.from(files);
-      if (newImages.length > 2) {
-        setError("You can only upload a maximum of 2 photos.");
-        setSelectedImages([]); // Clear any previously selected images if validation fails
-        if (fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
-      } else {
-        setSelectedImages(newImages);
-        setError("");
-        setUrl(""); // Clear URL input if images are selected
-      }
+    console.log('Files from input:', files ? files.length : 'null');
+    
+    if (files) {
+      console.log('Raw files:', Array.from(files).map((file, i) => `${i + 1}: ${file.name} (${file.type}, ${file.size} bytes)`));
+      
+      const newFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+      console.log('Filtered image files:', newFiles.length);
+      console.log('Image files:', newFiles.map((file, i) => `${i + 1}: ${file.name} (${file.type}, ${file.size} bytes)`));
+      
+      // Combine existing and new files, ensuring no more than 3 total
+      setSelectedImages(prevImages => {
+        console.log('Previous images count:', prevImages.length);
+        const combined = [...prevImages, ...newFiles];
+        console.log('Combined images count:', combined.length);
+        const final = combined.slice(0, 3); // Limit to 3 images
+        console.log('Final images count (after limit):', final.length);
+        
+        // Log detailed info for each selected image
+        console.log('\n=== DETAILED IMAGE SELECTION INFO ===');
+        final.forEach((file, index) => {
+          console.log(`\nImage ${index + 1} Selected:`);
+          console.log('📁 Name:', file.name);
+          console.log('🎭 Type:', file.type);
+          console.log('📏 Size:', file.size, 'bytes', `(${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+          console.log('📅 Last Modified:', new Date(file.lastModified).toISOString());
+          console.log('🔧 Constructor:', file.constructor.name);
+          
+          // Check for any unusual properties
+          if (file.webkitRelativePath) {
+            console.log('📂 Webkit Relative Path:', file.webkitRelativePath);
+          }
+          
+          // Log the File object itself for debugging
+          console.log('🗂️ Full File Object:', file);
+        });
+        console.log('=== END DETAILED IMAGE INFO ===\n');
+        
+        return final;
+      });
+      setError("")
     } else {
-      setSelectedImages([]); // No files selected, clear state
+      console.log('No files selected');
     }
   }
 
-  // Helper function to convert File object to Base64 string
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
-    });
+  // Removes a selected image by its index
+  const removeImage = (indexToRemove: number) => {
+    setSelectedImages(prevImages => prevImages.filter((_, index) => index !== indexToRemove));
   };
 
-  // Internal function to handle extraction logic, generalized for URL and image
-  const handleExtractInternal = async (data: string | File[], sourceType: 'url' | 'image') => {
+  // Handles camera capture (currently just a placeholder for future implementation)
+  const handleCameraCapture = () => {
+    // In a real application, this would open the device's camera.
+    // For now, we'll simulate an error or prompt for manual upload.
+    setError("Camera capture is not fully implemented yet. Please use 'Upload Photo'.");
+    setStatus("error"); // Indicate an error state for now
+  }
+
+  // Internal function to handle recipe extraction, supports both URL and image data
+  const handleExtractInternal = async (input: string | File[]) => {
+    console.log('=== HANDLE EXTRACT INTERNAL CALLED ===');
+    console.log('Input type:', typeof input);
+    console.log('Input value:', Array.isArray(input) ? `Array with ${input.length} files` : input);
+    
     setStatus("loading")
     setError("")
 
-    let requestBody: any;
-    let endpoint: string;
-    let method: string;
-    let contentType: string | undefined = undefined;
-
-    if (sourceType === 'url') {
-      if (typeof data !== 'string' || !data) {
-        setError("Please enter a recipe URL");
-        setStatus("idle");
-        return;
-      }
-      if (!data.startsWith("http")) {
-        setError("Please enter a valid URL");
-        setStatus("idle");
-        return;
-      }
-      endpoint = `/api/extract-recipe?url=${encodeURIComponent(data)}`;
-      method = 'GET';
-    } else { // sourceType === 'image'
-      if (!Array.isArray(data) || data.length === 0) {
-        setError("Please select at least one image.");
-        setStatus("idle");
-        return;
-      }
-      if (data.length > 2) { // Double check for good measure
-        setError("You can only upload a maximum of 2 photos.");
-        setStatus("idle");
-        return;
-      }
-
-      // Convert image files to base64 strings for sending to the backend
-      const base64Images = await Promise.all(data.map(fileToBase64));
-
-      endpoint = `/api/extract-recipe`; // POST to the same route
-      method = 'POST';
-      requestBody = JSON.stringify({ images: base64Images }); // Send as JSON with images array
-      contentType = 'application/json';
-    }
-
     try {
-      const response = await fetch(endpoint, {
-        method: method,
-        headers: {
-          'Content-Type': contentType,
-        } as HeadersInit, // Type assertion for HeadersInit
-        body: requestBody,
-      });
+      let response;
+      let data;
 
-      const result = await response.json();
+      if (typeof input === 'string') {
+        // Handle URL extraction
+        if (!input.startsWith("http")) {
+          throw new Error("Please enter a valid URL (must start with http or https)");
+        }
+        response = await fetch(`/api/extract-recipe?url=${encodeURIComponent(input)}`);
+        data = await response.json();
+      } else {
+        // Handle image extraction
+        if (input.length === 0) {
+          throw new Error("Please select at least one image.");
+        }
+
+        // Convert files to base64 strings with compression
+        console.log('\n=== FRONTEND IMAGE PROCESSING ===');
+        console.log('Number of files to process:', input.length);
+        
+        const base64Images = await Promise.all(input.map((file, index) => {
+          return new Promise<string>((resolve, reject) => {
+            console.log(`\nProcessing file ${index + 1}:`);
+            console.log('File name:', file.name);
+            console.log('File type:', file.type);
+            console.log('File size:', file.size, 'bytes', `(${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+            
+                         // Create canvas for image compression
+             const canvas = document.createElement('canvas');
+             const ctx = canvas.getContext('2d');
+             const img = new window.Image();
+            
+            img.onload = () => {
+              console.log(`Original dimensions: ${img.width}x${img.height}`);
+              
+              // Calculate new dimensions (max 1024px on longest side)
+              const maxSize = 1024;
+              let { width, height } = img;
+              
+              if (width > height) {
+                if (width > maxSize) {
+                  height = (height * maxSize) / width;
+                  width = maxSize;
+                }
+              } else {
+                if (height > maxSize) {
+                  width = (width * maxSize) / height;
+                  height = maxSize;
+                }
+              }
+              
+              canvas.width = width;
+              canvas.height = height;
+              
+              console.log(`Compressed dimensions: ${width}x${height}`);
+              
+              // Draw and compress
+              ctx?.drawImage(img, 0, 0, width, height);
+              
+              // Convert to base64 with compression (0.7 quality for JPEG)
+              const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+              
+              console.log(`File ${index + 1} compression successful:`);
+              console.log('Original size:', file.size, 'bytes');
+              console.log('Compressed size:', compressedDataUrl.length, 'chars');
+              console.log('Compression ratio:', ((1 - compressedDataUrl.length / (file.size * 1.37)) * 100).toFixed(1) + '%');
+              
+              resolve(compressedDataUrl);
+            };
+            
+                         img.onerror = (error: Event | string) => {
+               console.error(`Image load error for file ${index + 1}:`, error);
+               reject(new Error(`Failed to load image: ${file.name}`));
+             };
+            
+            // Load the image
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              if (e.target?.result) {
+                img.src = e.target.result as string;
+              }
+            };
+            reader.onerror = (error) => {
+              console.error(`FileReader error for file ${index + 1}:`, error);
+              reject(error);
+            };
+            reader.readAsDataURL(file);
+          });
+        }));
+        
+        console.log('\n=== FINAL BASE64 SUMMARY ===');
+        console.log('Successfully converted images:', base64Images.length);
+        base64Images.forEach((base64, index) => {
+          console.log(`Image ${index + 1}: ${base64.substring(0, 50)}... (${base64.length} chars)`);
+        });
+        console.log('=== END FRONTEND PROCESSING ===\n');
+
+        console.log('=== MAKING FETCH REQUEST ===');
+        console.log('Endpoint: /api/extract-recipe');
+        console.log('Method: POST');
+        console.log('Images to send:', base64Images.length);
+        console.log('Request body size estimate:', JSON.stringify({ images: base64Images }).length, 'characters');
+
+        response = await fetch('/api/extract-recipe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ images: base64Images }),
+        });
+
+        console.log('=== FETCH RESPONSE ===');
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+        data = await response.json();
+        console.log('Response data:', data);
+      }
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to extract recipe');
+        throw new Error(data.error || 'Failed to extract recipe');
       }
 
-      const recipe = result as ExtractedRecipe;
-      const recipeData = encodeURIComponent(JSON.stringify(recipe))
-      router.push(`/cook/1?data=${recipeData}`) // Route to cook page with recipe data
-      
-      setStatus("success")
+      const recipe = data as ExtractedRecipe;
+      const recipeData = encodeURIComponent(JSON.stringify(recipe));
+      router.push(`/cook/1?data=${recipeData}`); // Navigate to cook page
+      setStatus("success");
+
     } catch (err) {
-      setStatus("error")
-      setError(err instanceof Error ? err.message : 'Failed to extract recipe')
+      console.error('=== EXTRACTION ERROR ===');
+      console.error('Error type:', typeof err);
+      console.error('Error message:', err instanceof Error ? err.message : 'Unknown error');
+      console.error('Full error:', err);
+      console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+      
+      setStatus("error");
+      setError(err instanceof Error ? err.message : 'Failed to extract recipe');
     }
   }
 
-  // Handler for URL form submission
-  const handleExtractUrl = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSelectedImages([]); // Clear images if URL is submitted
-    if (fileInputRef.current) fileInputRef.current.value = ""; // Clear file input
-    await handleExtractInternal(url, 'url');
+  // Public handler for URL form submission
+  const handleUrlExtract = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleExtractInternal(url);
   }
 
-  // Handler for image extraction button click
-  const handleExtractImage = async () => {
-    await handleExtractInternal(selectedImages, 'image');
+  // Public handler for image extraction
+  const handleImageExtract = async () => {
+    console.log('=== HANDLE IMAGE EXTRACT CALLED ===');
+    console.log('Selected images count:', selectedImages.length);
+    console.log('Selected images:', selectedImages.map((file, i) => `${i + 1}: ${file.name} (${file.type}, ${file.size} bytes)`));
+    
+    try {
+      await handleExtractInternal(selectedImages);
+    } catch (error) {
+      console.error('Error in handleImageExtract:', error);
+      setStatus("error");
+      setError(error instanceof Error ? error.message : 'Unknown error occurred');
+    }
   }
+
+  // Determine if the "Extract Recipe" button for images should be enabled
+  const isImageExtractButtonDisabled = status === "loading" || selectedImages.length === 0;
 
   return (
     <>
       <Card className="w-full">
         <CardContent className="pt-6">
-          <form onSubmit={handleExtractUrl} className="space-y-6">
+          <form onSubmit={handleUrlExtract} className="space-y-6">
             <div className="space-y-3">
               <h2 className="text-2xl font-semibold text-gray-800">Extract a recipe</h2>
               <p className="text-lg text-muted-foreground">
-                Paste a URL or upload a photo of any recipe and we'll transform it into a step-by-step cooking experience
+                Paste a URL or upload photos of any recipe and we'll transform it into a step-by-step cooking experience
               </p>
             </div>
 
@@ -172,27 +301,22 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
                   type="url"
                   placeholder="https://example.com/recipe"
                   value={url}
-                  onChange={(e) => {
-                    setUrl(e.target.value);
-                    setSelectedImages([]); // Clear images if URL input changes
-                    if (fileInputRef.current) fileInputRef.current.value = "";
-                  }}
+                  onChange={(e) => setUrl(e.target.value)}
                   className="flex-1 text-lg py-3"
                   disabled={status === "loading"}
                 />
-                <Button 
-                  type="submit" 
-                  disabled={status === "loading" || selectedImages.length > 0} // Disable if images are selected
+                <Button
+                  type="submit"
+                  disabled={status === "loading" || url.length === 0}
                   className="text-lg px-6 py-3 bg-red-500"
                 >
-                  {status === "loading" && url ? ( // Show loading for URL only if URL is active
+                  {status === "loading" && typeof url === 'string' && (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Extracting...
                     </>
-                  ) : (
-                    "Extract from URL"
                   )}
+                  {status !== "loading" && "Extract from URL"}
                 </Button>
               </div>
 
@@ -204,68 +328,97 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={handleImageUpload} 
-                    className="hidden" 
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
                     id="image-upload"
                     multiple // Allow multiple file selection
-                    ref={fileInputRef} // Attach ref to clear input
-                    disabled={status === "loading"}
+                    disabled={status === "loading" || selectedImages.length >= 3} // Disable if 3 images already selected
+                    ref={fileInputRef} // Assign the ref
                   />
                   <label htmlFor="image-upload">
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full text-lg py-3 cursor-pointer bg-white/80 backdrop-blur-sm border-2"
-                      disabled={status === "loading"}
+                      className="w-full text-lg py-3 bg-white/80 backdrop-blur-sm border-2"
+                      disabled={status === "loading" || selectedImages.length >= 3}
                       asChild
                     >
                       <div>
                         <Upload className="mr-2 h-5 w-5" />
-                        Upload Photo(s)
+                        Upload Photo ({selectedImages.length}/3)
                       </div>
                     </Button>
                   </label>
                 </div>
 
-                {/* "Take Photo" button can now directly trigger the file input, which on mobile often presents camera option */}
                 <Button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()} // Trigger the hidden file input
-                  disabled={status === "loading"}
-                  className="text-lg py-3 bg-white/80 backdrop-blur-sm border-2"
+                  variant="outline"
+                  onClick={handleCameraCapture}
+                  disabled={status === "loading" || selectedImages.length >= 3}
+                  className="w-full text-lg py-3 bg-white/80 backdrop-blur-sm border-2"
                 >
                   <Camera className="mr-2 h-5 w-5" />
-                  Take Photo(s)
+                  Take Photo ({selectedImages.length}/3)
                 </Button>
               </div>
 
+              {/* Display selected image thumbnails */}
               {selectedImages.length > 0 && (
-                <div className="flex flex-col space-y-2">
-                  <p className="text-lg text-gray-700">Selected files: {selectedImages.map(file => file.name).join(', ')}</p>
-                  <Button
-                    onClick={handleExtractImage}
-                    disabled={status === "loading"}
-                    className="text-lg px-6 py-3 bg-red-500"
-                  >
-                    {status === "loading" && selectedImages.length > 0 ? ( // Show loading for images only if images are active
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Extracting Photo(s)...
-                      </>
-                    ) : (
-                      "Extract from Photo(s)"
-                    )}
-                  </Button>
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {selectedImages.map((file, index) => (
+                    <div key={index} className="relative w-full h-24 rounded-md overflow-hidden border border-gray-300">
+                      <Image
+                        src={URL.createObjectURL(file)}
+                        alt={`Recipe image ${index + 1}`}
+                        layout="fill"
+                        objectFit="cover"
+                        className="rounded-md"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-1 right-1 bg-black bg-opacity-50 rounded-full text-white p-0.5 hover:bg-opacity-75"
+                        aria-label={`Remove image ${index + 1}`}
+                      >
+                        <XCircle className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
+              )}
+
+              {selectedImages.length > 0 && (
+                <Button
+                  onClick={() => {
+                    console.log('=== EXTRACT BUTTON CLICKED ===');
+                    console.log('Current status:', status);
+                    console.log('Selected images count:', selectedImages.length);
+                    console.log('Button disabled?:', isImageExtractButtonDisabled);
+                    console.log('About to call handleImageExtract...');
+                    handleImageExtract();
+                  }}
+                  disabled={isImageExtractButtonDisabled}
+                  className="w-full text-lg px-6 py-3 bg-blue-500" // Different color for image extraction button
+                >
+                  {status === "loading" && selectedImages.length > 0 ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Processing Images...
+                    </>
+                  ) : (
+                    `Extract from ${selectedImages.length} Image(s)`
+                  )}
+                </Button>
               )}
             </div>
 
             {error && <p className="text-lg text-red-500">{error}</p>}
 
-            {(status === "loading") && ( // Unified loading message for both types of extraction
+            {status === "loading" && (
               <div className="flex items-center justify-center py-6">
                 <div className="text-center">
                   <div className="flex justify-center mb-4">
@@ -281,9 +434,9 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
         </CardContent>
       </Card>
 
-      <RecipeErrorModal 
-        isOpen={status === "error"} 
-        onClose={resetForm} 
+      <RecipeErrorModal
+        isOpen={status === "error"}
+        onClose={resetForm}
       />
     </>
   )

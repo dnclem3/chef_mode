@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { ExtractionLog, ExtractedRecipe } from '@/lib/types'
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from 'openai';
 
+// Helper function to log extraction events
 function logExtraction(log: ExtractionLog) {
   const timestamp = log.timestamp || new Date().toISOString()
   const logEntry = {
@@ -14,7 +15,7 @@ function logExtraction(log: ExtractionLog) {
   console.log('\n=== Recipe Extraction Log ===')
   console.log('Timestamp:', logEntry.timestamp)
   console.log('Stage:', logEntry.stage)
-  console.log('URL:', logEntry.url) // This might be "Image extraction request received" for image uploads
+  console.log('URL:', logEntry.url)
   console.log('Success:', logEntry.success)
   console.log('Environment:', logEntry.environment)
   console.log('User Agent:', logEntry.userAgent)
@@ -35,6 +36,139 @@ function logExtraction(log: ExtractionLog) {
   console.log('===========================\n')
 }
 
+// ✅ UPDATED FUNCTION FOR MULTIPLE IMAGE SUPPORT WITH OPENAI
+async function extractRecipeFromImage(imageData: string[], userAgent?: string): Promise<ExtractedRecipe> {
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+
+  if (!openaiApiKey) {
+    throw new Error("OpenAI API key is not configured.");
+  }
+
+  const openai = new OpenAI({
+    apiKey: openaiApiKey,
+  });
+
+  const systemPrompt = `You are a recipe extraction assistant. Extract recipe information from images and return it in JSON format.
+Always return valid JSON with no additional text or markdown formatting.
+If multiple images are provided, combine all visible information into a single recipe.`;
+
+  const userPrompt = `Extract the complete recipe information from the provided image(s). Return only a JSON object with this exact structure:
+{
+  "title": "string",
+  "image": null,
+  "totalTime": number,
+  "yields": "string",
+  "sourceUrl": "string",
+  "ingredients": ["string"],
+  "instructions": ["string"],
+  "step_ingredients": { "[step_index: number]": ["string"] }
+}
+
+For ingredients, include quantity and item in each string.
+For instructions, provide clear step-by-step directions.
+The step_ingredients should map step index (0-based) to ingredients used in that step.
+If any information is not visible, use null for strings, 0 for numbers, or empty arrays.`;
+
+  try {
+    // Debug: Log detailed information about each image
+    console.log('\n=== DETAILED IMAGE ANALYSIS ===');
+    console.log('Total images received:', imageData.length);
+    
+    imageData.forEach((data, index) => {
+      console.log(`\nImage ${index + 1}:`);
+      console.log('Data URL prefix:', data.substring(0, 100));
+      console.log('Total length:', data.length);
+      
+      // Extract MIME type and encoding
+      const mimeMatch = data.match(/^data:([^;]+);(.+),/);
+      if (mimeMatch) {
+        console.log('MIME type:', mimeMatch[1]);
+        console.log('Encoding:', mimeMatch[2]);
+        
+        // Check if it's base64
+        if (mimeMatch[2] === 'base64') {
+          const base64Part = data.split(',')[1];
+          console.log('Base64 length:', base64Part.length);
+          console.log('Base64 preview:', base64Part.substring(0, 50) + '...');
+          
+          // Validate base64
+          try {
+            atob(base64Part.substring(0, 100)); // Test a small portion
+            console.log('Base64 validation: VALID');
+          } catch (e) {
+            console.log('Base64 validation: INVALID', e);
+          }
+        } else {
+          console.log('WARNING: Not base64 encoded!');
+        }
+      } else {
+        console.log('WARNING: Invalid data URL format!');
+      }
+    });
+
+    // Format images for OpenAI
+    const formattedImages = imageData.map((data, index) => {
+      // Validate data URL format before sending to OpenAI
+      if (!data.startsWith('data:image/')) {
+        console.error(`Image ${index + 1}: Invalid data URL format`);
+        throw new Error(`Image ${index + 1} has invalid format`);
+      }
+      
+      return {
+        type: "image_url" as const,
+        image_url: {
+          url: data, // OpenAI accepts base64 images with data URL format
+        }
+      };
+    });
+
+    console.log('\nSending request to OpenAI...');
+    console.log('Number of valid images:', formattedImages.length);
+
+    // Log the exact request structure
+    console.log('Request structure:');
+    console.log('Number of images being sent:', formattedImages.length);
+    console.log('Text prompt length:', userPrompt.length);
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: userPrompt },
+            ...formattedImages
+          ]
+        }
+      ],
+      max_tokens: 4096,
+      temperature: 0.2,
+      response_format: { type: "json_object" }
+    });
+
+    const recipeData = completion.choices[0]?.message?.content;
+    
+    if (!recipeData) {
+      throw new Error("No response from OpenAI");
+    }
+
+    console.log('OpenAI response:', recipeData);
+    
+    const parsedData = JSON.parse(recipeData) as ExtractedRecipe;
+    
+    if (!parsedData || !parsedData.title || !Array.isArray(parsedData.instructions)) {
+      throw new Error("OpenAI response missing title or instructions.");
+    }
+
+    console.log('Successfully parsed and validated OpenAI recipe');
+    return parsedData;
+  } catch (err) {
+    console.error('OpenAI extraction error:', err);
+    throw new Error(`OpenAI image extraction failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  }
+}
+
+// Function to extract recipe from a URL using an external service
 async function extractRecipeFromUrl(url: string, userAgent?: string): Promise<ExtractedRecipe> {
   const extractorBaseUrl = process.env.RECIPE_EXTRACTOR_BASE_URL;
   const extractorApiKey = process.env.RECIPE_EXTRACTOR_API_KEY;
@@ -44,8 +178,6 @@ async function extractRecipeFromUrl(url: string, userAgent?: string): Promise<Ex
   }
 
   const externalApiUrl = `${extractorBaseUrl}/extract?url=${encodeURIComponent(url)}`;
-  
-  console.log('Attempting to call external recipe extraction service (URL):', externalApiUrl);
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -69,90 +201,7 @@ async function extractRecipeFromUrl(url: string, userAgent?: string): Promise<Ex
   return response.json() as Promise<ExtractedRecipe>;
 }
 
-async function extractRecipeFromImage(imageData: string[], userAgent?: string): Promise<ExtractedRecipe> {
-  const geminiApiKey = process.env.GEMINI_API_KEY;
-
-  if (!geminiApiKey) {
-    throw new Error("Gemini API key is not configured.");
-  }
-
-  // Initialize the Gemini API client
-  const genAI = new GoogleGenerativeAI(geminiApiKey);
-  console.log('Initializing Gemini with model: gemini-2.5-flash');
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-  // Prepare the prompt for recipe extraction
-  const prompt = "Extract the recipe information from this input. Return a JSON object with exactly this structure: { \"title\": \"string\", \"image\": null, \"totalTime\": number, \"yields\": \"string\", \"sourceUrl\": \"string\", \"ingredients\": [\"string\"], \"instructions\": [\"string\"], \"step_ingredients\": { \"[step_index: number]\": [\"string\"] } }. For ingredients, include quantity and item in each string. For instructions, provide clear step-by-step directions. The step_ingredients should map step index (0-based) to ingredients used in that step. If any information is not visible, use null or empty arrays as appropriate.";
-
-  try {
-    // Process each input and create parts array
-    console.log('Processing input data...');
-    const parts = await Promise.all(imageData.map(async (data, index) => {
-      console.log(`Processing input ${index + 1}/${imageData.length}`);
-      
-      // Check if it's base64 image data
-      if (data.startsWith('data:image/')) {
-        console.log('Processing as image data');
-        const base64Content = data.includes('base64,') ? data.split('base64,')[1] : data;
-        const mimeType = data.split(';')[0].split(':')[1] || "image/jpeg";
-        
-        return {
-          inlineData: {
-            data: base64Content,
-            mimeType: mimeType
-          }
-        };
-      } else {
-        // Handle as text data
-        console.log('Processing as text data');
-        return {
-          text: data
-        };
-      }
-    }));
-
-    // Generate content with the model
-    console.log('Calling Gemini API...');
-    const result = await model.generateContent([prompt, ...parts]);
-    console.log('Received response from Gemini');
-    const response = await result.response;
-    const text = response.text();
-    
-    console.log('Raw Gemini response:', text);
-
-    // Extract JSON from the response
-    let jsonStr = text;
-    const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/);
-    if (jsonMatch && jsonMatch[1]) {
-      console.log('Found JSON in code block');
-      jsonStr = jsonMatch[1].trim();
-    } else if (!text.trim().startsWith('{')) {
-      console.log('Looking for JSON in text');
-      const firstBrace = text.indexOf('{');
-      const lastBrace = text.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        jsonStr = text.substring(firstBrace, lastBrace + 1);
-      }
-    }
-
-    console.log('Attempting to parse JSON:', jsonStr);
-    const recipeData = JSON.parse(jsonStr) as ExtractedRecipe;
-
-    // Validate the parsed data
-    if (!recipeData || typeof recipeData.title !== 'string' || !Array.isArray(recipeData.instructions)) {
-      throw new Error("Invalid recipe structure in response");
-    }
-
-    return recipeData;
-  } catch (error) {
-    console.error('Detailed error in extractRecipeFromImage:', error);
-    if (error instanceof Error) {
-      console.error('Error stack:', error.stack);
-    }
-    throw new Error(`Failed to process with Gemini: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
+// GET handler for URL-based recipe extraction
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const url = searchParams.get('url')
@@ -218,6 +267,7 @@ export async function GET(request: Request) {
   }
 }
 
+// POST handler for image-based recipe extraction
 export async function POST(request: Request) {
   const userAgent = request.headers.get('user-agent') || undefined
   let imageData: string[] = [];
@@ -227,7 +277,7 @@ export async function POST(request: Request) {
     if (body.images && Array.isArray(body.images)) {
       imageData = body.images;
     } else {
-      throw new Error("Invalid image data provided in request body.");
+      throw new Error("Invalid request body: 'images' array is missing or malformed.");
     }
   } catch (error) {
     logExtraction({
@@ -256,7 +306,7 @@ export async function POST(request: Request) {
   const timestamp = new Date().toISOString()
   logExtraction({
     stage: 'init',
-    url: 'Image extraction request received',
+    url: `Image extraction request received (${imageData.length} images)`,
     success: false,
     timestamp,
     userAgent
