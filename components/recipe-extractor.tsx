@@ -326,7 +326,7 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
                 <div className="flex-1 border-t border-muted"></div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1  gap-3">
                 <div>
                   <input 
                     type="file" 
@@ -366,7 +366,6 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
                 </Button>
 */}
               </div>
-
               {/* Display selected image thumbnails */}
               {selectedImages.length > 0 && (
                 <div className="mt-4 grid grid-cols-3 gap-2">
@@ -423,7 +422,7 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
               <div className="flex items-center justify-center py-6">
                 <div className="text-center">
                   <div className="flex justify-center mb-4">
-                    <ChefHat className="h-10 w-10 text-emerald-600 animate-bounce" />
+                    <ChefHat className="h-10 w-10 text-red-600 animate-bounce" />
                   </div>
                   <p className="text-lg text-muted-foreground">
                     Chef is getting into the kitchen...

@@ -47,7 +47,7 @@ export default function Home() {
             <RecipeExtractorWrapper />
           </Suspense>
         </div>
-
+{/*}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full mb-12">
           <div className="flex flex-col items-center text-center p-4">
             <div className="h-12 w-12 rounded-full flex items-center justify-center mb-4 bg-muted-foreground text-white">
@@ -82,20 +82,9 @@ export default function Home() {
             </li>
           </ul>
         </div>
+*/}
       </main>
 
-      <footer className="border-t py-6">
-        <div className="container mx-auto px-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <ChefHat className="h-5 w-5 text-muted-foreground" />
-            <span className="text-muted-foreground">Chef Mode</span>
-          </div>
-          <a href="https://github.com" className="text-muted-foreground hover:text-foreground flex items-center gap-2">
-            <Github className="h-5 w-5" />
-            <span className="hidden sm:inline">GitHub</span>
-          </a>
-        </div>
-      </footer>
     </div>
   )
 }

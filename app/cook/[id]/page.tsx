@@ -29,7 +29,7 @@ export default function CookPage() {
     if (phase === "prep") {
       setPhase("cook")
       setCurrentStepIndex(0)
-    } else if (currentStepIndex < (recipe?.instructions.length ?? 0) ) {
+    } else if (currentStepIndex < (recipe?.instructions.length ?? 0) - 1) {
       setCurrentStepIndex(prev => prev + 1)
     }
   }, [phase, currentStepIndex, recipe?.instructions.length])
@@ -111,49 +111,56 @@ export default function CookPage() {
   // Computed values
   const isPrepPhase = phase === "prep"
   const prepSteps = 1
-  const cookSteps = recipe.instructions.length // Changed from recipe.cook.steps.length
-  const totalSteps = prepSteps + cookSteps
-  const completedSteps = isPrepPhase ? 1 : prepSteps + currentStepIndex
-  const progress = (completedSteps / totalSteps) * 100
+  const cookSteps = recipe.instructions.length
+  const totalSteps = prepSteps + cookSteps // Changed: Add prep and cook steps together
+  const currentStep = isPrepPhase ? 1 : prepSteps + currentStepIndex + 1
+  const progress = (currentStep / totalSteps) * 100
 
   // Event handlers
 
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
+    <div className="min-h-screen flex flex-col">
       <header className="border-b bg-white/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-5 w-5" />
             <span className="text-lg">Exit</span>
           </Link>
-          <h1 className="font-medium text-xl">{recipe.title}</h1>
+          <h1 className="font-medium text-xl">
+            <Link href={recipe.sourceUrl} className="flex items-center gap-2 text-muted-foreground hover:text-foreground cursor-pointer">
+            {recipe.title}
+            </Link>
+          </h1>
+
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-3 bg-white/60 backdrop-blur-sm">
         <div className="flex justify-between items-center text-lg text-muted-foreground mb-2">
+{/*
           <div className="font-medium">
             {isPrepPhase ? "Preparation" : "Cooking"} - Step {isPrepPhase ? 1 : currentStepIndex + 1} of {isPrepPhase ? 1 : cookSteps}
           </div>
+*/}
           <div>
-            {completedSteps} of {totalSteps} total steps
+            {currentStep} of {totalSteps} total steps
           </div>
         </div>
         <Progress value={progress} className="h-2 mb-4" />
       </div>
 
-      <main className="flex-1 container mx-auto px-4 py-8 flex flex-col">
+      <main className="flex-1 container mx-auto px-4 py-8 pb-32 flex flex-col"> {/* Added pb-32 for bottom padding */}
         <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
           <div className="mb-8">
             {isPrepPhase ? (
               <>
                 <h2 className="text-4xl font-bold mb-6 text-gray-800">Prepare Ingredients</h2>
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-orange-200">
+                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-red-400">
                   <ul className="space-y-3">
                     {recipe.ingredients.map((ingredient, index) => ( // Changed from recipe.prep.ingredients
                       <li key={index} className="flex items-center gap-3">
-                        <span className="h-2 w-2 rounded-full bg-emerald-600"></span>
+                        <span className="h-2 w-2 rounded-full bg-stone-800"></span>
                         <span className="text-xl text-gray-700">
                           {ingredient} {/* Changed from ingredient.quantity and ingredient.item */}
                         </span>
@@ -164,7 +171,7 @@ export default function CookPage() {
               </>
             ) : (
               <>
-                <h2 className="text-4xl font-bold mb-6 text-gray-800">Step {currentStepIndex + 1}</h2>
+
                 <p className="text-2xl leading-relaxed mb-8 text-gray-700 font-medium">
                   {recipe.instructions[currentStepIndex]} {/* Changed from recipe.cook.steps */}
                 </p>
@@ -174,7 +181,8 @@ export default function CookPage() {
             )}
           </div>
 
-          <div className="mt-auto flex justify-between">
+          {/* Replace the existing button container div with this new one */}
+          <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t p-4 flex justify-between">
             <Button
               variant="outline"
               onClick={handlePrevious}
@@ -188,7 +196,7 @@ export default function CookPage() {
             <Button
               onClick={handleNext}
               disabled={phase === "cook" && currentStepIndex === cookSteps - 1}
-              className="flex items-center gap-2 text-xl px-8 py-4 h-auto"
+              className="flex items-center gap-2 text-xl bg-red-600 px-8 py-4 h-auto"
             >
               Next
               <ChevronRight className="h-6 w-6" />
