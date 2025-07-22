@@ -106,7 +106,65 @@ Then the output should be:
 }
 `;
 
-  const userPrompt = ``;
+  const userPrompt = `
+  
+You are an expert at extracting structured recipe data from photos of cookbooks and printed recipes.
+
+You will receive up to 3 images of a single recipe. Your job is to return the data in valid JSON using the exact format below.
+
+Only extract information you can clearly see in the images. Do not hallucinate or infer missing data. If a field is not visible, leave it as:
+	•	null for strings (e.g., title, sourceUrl, image),
+	•	0 for numbers (e.g., totalTime),
+	•	[] for arrays (e.g., ingredients or instructions).
+
+For ingredients, return each as a string in the format: "quantity + item" (e.g., "1/2 cup chopped onion").
+
+For instructions, return each step as a separate string. Keep them concise but complete.
+
+Format your output like this:
+
+{
+  "title": "string",
+  "image": null,
+  "totalTime": 0,
+  "yields": "string",
+  "sourceUrl": "string",
+  "ingredients": ["string"],
+  "instructions": ["string"]
+}
+
+
+⸻
+
+Example:
+
+If the image shows a recipe titled “Simple Tomato Pasta” with the following visible:
+	•	Serves 2
+	•	Ingredients: 200g spaghetti, 2 garlic cloves, 1 tbsp olive oil, 1 can diced tomatoes
+	•	Instructions: Boil pasta. Sauté garlic. Add tomatoes. Combine.
+
+Then the output should be:
+
+{
+  "title": "Simple Tomato Pasta",
+  "image": null,
+  "totalTime": 0,
+  "yields": "2 servings",
+  "sourceUrl": null,
+  "ingredients": [
+    "200g spaghetti",
+    "2 garlic cloves",
+    "1 tablespoon olive oil",
+    "1 can diced tomatoes"
+  ],
+  "instructions": [
+    "Boil pasta",
+    "Sauté garlic",
+    "Add tomatoes",
+    "Combine"
+  ]
+}
+`
 
   try {
     // Debug: Log detailed information about each image
@@ -170,8 +228,12 @@ Then the output should be:
     console.log('Text prompt length:', userPrompt.length);
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
+        {
+          role: "system",
+          content: systemPrompt
+        },
         {
           role: "user",
           content: [

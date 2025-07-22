@@ -338,7 +338,7 @@ export default function RecipeExtractor({ initialUrl }: RecipeExtractorProps) {
                     disabled={status === "loading" || selectedImages.length >= 3} // Disable if 3 images already selected
                     ref={fileInputRef} // Assign the ref
                   />
-                  <label htmlFor="image-upload">
+                  <label htmlFor="image-upload" onClick={() => console.log('Upload label clicked')}>
                     <Button
                       type="button"
                       variant="outline"

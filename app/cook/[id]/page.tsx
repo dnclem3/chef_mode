@@ -128,9 +128,15 @@ export default function CookPage() {
             <span className="text-lg">Exit</span>
           </Link>
           <h1 className="font-medium text-xl">
-            <Link href={recipe.sourceUrl} className="flex items-center gap-2 text-muted-foreground hover:text-foreground cursor-pointer">
-            {recipe.title}
-            </Link>
+            {recipe.sourceUrl ? (
+              <Link href={recipe.sourceUrl} className="flex items-center gap-2 text-muted-foreground hover:text-foreground cursor-pointer">
+                {recipe.title}
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">
+                {recipe.title}
+              </span>
+            )}
           </h1>
 
         </div>
